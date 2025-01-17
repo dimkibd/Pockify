@@ -1,148 +1,138 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
-import { SafeAreaView, Button, FlatList } from 'react-native';
-import { Picker } from 'react-native';
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
-const App = () => {
-  const [expense, setExpense] = useState('');
-  const [amount, setAmount] = useState('');
-  const [expenses, setExpenses] = useState([]);
-  const [total, setTotal] = useState(0);
+// Firebase configuration
+const firebaseConfig = {   apiKey: "AIzaSyAvhnJOnzUJzCc8MiCFs2HksNratuRncnA",
+  authDomain: "pockify-41e51.firebaseapp.com",
+  projectId: "pockify-41e51",
+  storageBucket: "pockify-41e51.firebasestorage.app",
+  messagingSenderId: "33391220232",
+  appId: "1:33391220232:web:528be8515fd882c1b963bd" };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
+export default function CreateAccount({ navigation }) {
+  const [email, setEmail] = useState(''); // State for email
+  const [password, setPassword] = useState(''); // State for password
 
-  const addExpense = () => {
-    if (expense && amount) {
-      const numericAmount = parseFloat(amount);
-      if (isNaN(numericAmount)) {
-        Alert.alert('Please enter a valid amount.');
-        return;
-      }
-      setExpenses([
-        ...expenses,
-        { id: Date.now(), expense, amount: numericAmount, },
-      ]);
-      setTotal(total + numericAmount);
-      setExpense('');
-      setAmount('');
-    } else {
+  // Function to create a new account
+  const handleCreateAccount = async () => {
+    if (!email || !password) {
       Alert.alert('Please fill in both fields.');
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      Alert.alert('Account created successfully!', 'Welcome to Pockify!');
+      navigation.navigate('Home');  // Navigate to Home screen after account creation
+    } catch (error) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          Alert.alert('This email is already in use.');
+          break;
+        case 'auth/invalid-email':
+          Alert.alert('Invalid email address.');
+          break;
+        case 'auth/weak-password':
+          Alert.alert('Password should be at least 6 characters.');
+          break;
+        default:
+          Alert.alert('Account creation failed', error.message);
+      }
     }
   };
 
-  const deleteExpense = (id, amount) => {
-    const updatedExpenses = expenses.filter((item) => item.id !== id);
-    setExpenses(updatedExpenses);
-    setTotal(total - amount);
-  };
+  return (
+    <View style={styles.container}>
+      <View style={styles.titleContainer}>
 
-  const renderExpense = ({ item }) => (
-    <View style={styles.expenseItem}>
-      <View>
-        <Text style={styles.expenseText}>
-        </Text>
-        <Text style={styles.expenseAmount}>PHP{item.amount.toFixed(2)}</Text>
+        <Text style={styles.title}>Pockify</Text>
       </View>
-      <Button
-        title="Delete"
-        color="red"
-        onPress={() => deleteExpense(item.id, item.amount)}
+      <StatusBar style="auto" />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
       />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+      <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
+        <Text style={styles.buttonText}>Create Account</Text>
+      </TouchableOpacity>
+
+      {/* Button to navigate to Login screen */}
+      <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('signin')}>
+        <Text style={styles.linkButtonText}>Already have an account? Log In</Text>
+      </TouchableOpacity>
     </View>
   );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Budget Tracker</Text>
-      <Text style={styles.total}>Total: PHP{total.toFixed(2)}</Text>
-
-      <View style={styles.inputContainer}>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Expense"
-          value={expense}
-          onChangeText={setExpense}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Amount"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
-        <Button title="Add Expense" color="green" onPress={addExpense} />
-      </View>
-
-      <FlatList
-        data={expenses}
-        renderItem={renderExpense}
-        keyExtractor={(item) => item.id.toString()}
-        style={styles.expenseList}
-      />
-    </SafeAreaView>
-  );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#15202b',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
-    backgroundColor: 'black',
   },
-  header: {
-    fontSize: 24,
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 250,
+    height: 200,
+    marginBottom: 5,
+  },
+  title: {
+    fontSize: 71,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: 'white',
-  },
-  total: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: 'green',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  picker: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    marginBottom: 10,
+    marginBottom: 30,
+    color: '#02ffa0',
   },
   input: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: '#fff',
-  },
-  expenseList: {
-    marginTop: 10,
-  },
-  expenseItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-    borderRadius: 5,
     borderColor: '#ddd',
-    borderWidth: 1,
   },
-  expenseText: {
-    fontSize: 16,
+  button: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#007a6c',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  expenseAmount: {
-    fontSize: 16,
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
   },
+  linkButton: {
+    marginTop: 20,
+  },
+  linkButtonText: {
+    color: '#02ffa0',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  },
 });
-
-export default App;

@@ -2,15 +2,17 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 // Firebase configuration
-const firebaseConfig = {   apiKey: "AIzaSyAvhnJOnzUJzCc8MiCFs2HksNratuRncnA",
+const firebaseConfig = {
+  apiKey: "AIzaSyAvhnJOnzUJzCc8MiCFs2HksNratuRncnA",
   authDomain: "pockify-41e51.firebaseapp.com",
   projectId: "pockify-41e51",
   storageBucket: "pockify-41e51.firebasestorage.app",
   messagingSenderId: "33391220232",
-  appId: "1:33391220232:web:528be8515fd882c1b963bd" };
+  appId: "1:33391220232:web:528be8515fd882c1b963bd"
+};
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
@@ -26,8 +28,8 @@ export default function CreateAccount({ navigation }) {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      Alert.alert('Account created successfully!', 'Welcome to Pockify!');
+      await signInWithEmailAndPassword(auth, email, password);
+      Alert.alert( 'Welcome to Pockify!');
       navigation.navigate('Home');  // Navigate to Home screen after account creation
     } catch (error) {
       switch (error.code) {
@@ -49,7 +51,7 @@ export default function CreateAccount({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
-        <Image source={require('./assets/demoLogo.png')} style={styles.logo} />
+    
         <Text style={styles.title}>Pockify</Text>
       </View>
       <StatusBar style="auto" />
@@ -68,12 +70,12 @@ export default function CreateAccount({ navigation }) {
         onChangeText={setPassword}
       />
       <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-        <Text style={styles.buttonText}>Create Account</Text>
+        <Text style={styles.buttonText}>Login to Pockify</Text>
       </TouchableOpacity>
 
-      {/* Button to navigate to Login screen */}
+      {/* Button to navigate to SignIn screen */}
       <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('signin')}>
-        <Text style={styles.linkButtonText}>Already have an account? Log In</Text>
+        <Text style={styles.linkButtonText}>Create an Account</Text>
       </TouchableOpacity>
     </View>
   );

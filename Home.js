@@ -1,250 +1,119 @@
-import React, { useState, useEffect } from "react";
-import {
-  SafeAreaView,
-  View,
-  Text,
-  TextInput,
-  Button,
-  FlatList,
-  StyleSheet,
-  Alert,
-} from "react-native";
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, orderBy, query, serverTimestamp } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, currentUser } from "firebase/auth";
+import React from 'react';
+import { View, Text, Button, StyleSheet, Alert } from 'react-native';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAvhnJOnzUJzCc8MiCFs2HksNratuRncnA",
-  authDomain: "pockify-41e51.firebaseapp.com",
-  projectId: "pockify-41e51",
-  storageBucket: "pockify-41e51.appspot.com",
-  messagingSenderId: "33391220232",
-  appId: "1:33391220232:web:528be8515fd882c1b963bd",
-};
+const Home = ({ navigation }) => {
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-const App = () => {
-  const [expense, setExpense] = useState("");
-  const [amount, setAmount] = useState("");
-  const [expenses, setExpenses] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Load expenses from Firestore when the user is authenticated
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        loadExpenses();
-      } else {
-        setExpenses([]);
-        setTotal(0);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const loadExpenses = async () => {
-    const user = auth.currentUser;
+  const handleDeleteAllExpenses = async () => {
+    const user = getAuth().currentUser;
     if (user) {
+      const db = getFirestore();
+      const expensesRef = collection(db, 'users', user.uid, 'expenses');
+
       try {
-        const q = query(
-          collection(db, "users", user.uid, "expenses"),
-          orderBy("createdAt", "desc")
+        // Retrieve all expenses documents
+        const snapshot = await getDocs(expensesRef);
+        const deletePromises = snapshot.docs.map((docSnapshot) => 
+          deleteDoc(doc(db, 'users', user.uid, 'expenses', docSnapshot.id))
         );
-        const snapshot = await getDocs(q);
 
-        const loadedExpenses = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // Execute all delete promises
+        await Promise.all(deletePromises);
 
-        setExpenses(loadedExpenses);
-        const totalAmount = loadedExpenses.reduce((acc, item) => acc + item.amount, 0);
-        setTotal(totalAmount);
+        Alert.alert('Success', 'All expenses have been deleted.');
       } catch (error) {
-        console.error("Error loading expenses: ", error);
-        Alert.alert("Error", "There was an issue loading expenses.");
+        console.error('Error deleting expenses:', error);
+        Alert.alert('Error', 'There was an issue deleting the expenses.');
       }
     }
   };
-
-  const addExpense = async () => {
-    if (expense && amount) {
-      const numericAmount = parseFloat(amount);
-
-      // Ensure amount is a valid number and greater than zero
-      if (isNaN(numericAmount) || numericAmount <= 0) {
-        Alert.alert("Invalid Input", "Please enter a valid numeric amount greater than zero.");
-        return;
-      }
-
-      const user = auth.currentUser; // Correct way to get current user
-      if (user) {
-        try {
-          setIsLoading(true); // Set loading state
-          console.log("Adding expense: ", expense, numericAmount);
-
-          // Add expense to Firestore
-          await addDoc(collection(db, "users", user.uid, "expenses"), {
-            expense,
-            amount: numericAmount,
-            createdAt: serverTimestamp(),
-          });
-
-          // Clear input fields
-          setExpense("");
-          setAmount("");
-
-          // Reload expenses list
-          loadExpenses();
-
-
-        } catch (error) {
-          console.error("Error adding expense: ", error);
-          Alert.alert("Error", "There was an issue adding the expense.");
-        } finally {
-          setIsLoading(false); // Reset loading state
-        }
-      } else {
-        console.log("User is not authenticated.");
-        Alert.alert("Error", "You need to be logged in to add an expense.");
-      }
-    } else {
-      Alert.alert("Missing Fields", "Both fields are required.");
-    }
-  };
-
-  const deleteExpense = async (id) => {
-    const user = auth.currentUser;
-    if (user) {
-      try {
-        console.log("Deleting expense with ID:", id);
-        await deleteDoc(doc(db, "users", user.uid, "expenses", id));
-        loadExpenses(); // Refresh the list
-      } catch (error) {
-        console.error("Error deleting expense: ", error);
-      }
-    }
-  };
-
-  const renderExpense = ({ item }) => (
-    <View style={styles.expenseItem}>
-      <View>
-        <Text style={styles.expenseText}>{item.expense}</Text>
-        <Text style={styles.expenseAmount}>PHP {item.amount.toFixed(2)}</Text>
-      </View>
-      <Button
-        title="Delete"
-        color="red"
-        onPress={() => deleteExpense(item.id)}
-      />
-    </View>
-  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Budget Tracker</Text>
-      <Text style={styles.total}>Total: PHP {total.toFixed(2)}</Text>
+    <View style={styles.container}>
+      <Text style={styles.pockify}>P O C K I F Y</Text>
+      <Text style={styles.header}> A Simple Budget</Text>
+      <Text style={styles.header}> Tracker</Text>
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Expense"
-          value={expense}
-          onChangeText={setExpense}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Amount"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
+      <View style={styles.buttonContainer}>
         <Button
-          title={isLoading ? "Adding..." : "Add Expense"}
-          onPress={addExpense}
-          color="green"
-          disabled={isLoading} // Disable button while loading
+          title="View Expenses"
+          onPress={() => navigation.navigate('spendingtable')}
+          color="blue"
         />
       </View>
 
-      {expenses.length > 0 ? (
-        <FlatList
-          data={expenses}
-          renderItem={renderExpense}
-          keyExtractor={(item) => item.id}
-          style={styles.expenseList}
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Create/Edit budget"
+          onPress={() => navigation.navigate('DateSelector')}
+          color="green"
         />
-      ) : (
-        <Text style={styles.noExpensesText}>No expenses added yet.</Text>
-      )}
-    </SafeAreaView>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Track Spending"
+          onPress={() => navigation.navigate('Details')}
+          color="orange"
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Profile"
+          onPress={() => navigation.navigate('Profile')}
+          color="red"
+        />
+      </View>
+
+      {/* Button to delete all expenses */}
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Delete All Expenses"
+          onPress={() => {
+            Alert.alert(
+              'Confirm Deletion',
+              'Are you sure you want to delete all expenses? This action cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', onPress: handleDeleteAllExpenses, style: 'destructive' }
+              ]
+            );
+          }}
+          color="purple"
+        />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+  
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#15202b',
+    backgroundColor: '#fffff',
   },
   header: {
     fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: 'bold',
+    marginBottom: 40,
+    color: '#02ffa0'
+    
+  },
+  pockify: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 40,
+    color: 'green',
+  },
+  buttonContainer: {
     marginBottom: 20,
-    color: "white",
-  },
-  total: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 20,
-    color: "green",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "grey",
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: "white",
-  },
-  expenseList: {
-    marginTop: 10,
-  },
-  expenseItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: "white",
-    borderRadius: 5,
-    borderColor: "#ddd",
-    borderWidth: 1,
-  },
-  expenseText: {
-    fontSize: 16,
-  },
-  expenseAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  noExpensesText: {
-    textAlign: "center",
-    color: "white",
-    fontSize: 16,
-    marginTop: 20,
+    width: '80%',
   },
 });
 
-export default App;
+export default Home;
