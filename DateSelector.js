@@ -6,7 +6,7 @@ import { getAuth } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 
 const DateSelector = () => {
-  const navigation = useNavigation();
+    const navigation = useNavigation();
     const auth = getAuth();
     const db = getFirestore();
 
@@ -39,12 +39,22 @@ const DateSelector = () => {
 
     const saveData = async () => {
         const user = auth.currentUser;
-        if (user && validateBudget()) {
+        if (user && validateBudget() && startDate && endDate) {
             const userRef = doc(db, 'users', user.uid, 'expenses', 'dates');
             await setDoc(userRef, { startDate, endDate, budget: parseFloat(budget) }, { merge: true });
             Alert.alert('Success', 'Dates and budget saved successfully!');
+            clearInputs(); // Reset after saving
         } else {
-            Alert.alert('Error', 'You must be logged in and budget must be valid.');
+            Alert.alert('Error', 'Ensure all fields are filled and budget is valid.');
+        }
+    };
+
+    const handleSubmit = () => {
+        if (startDate && endDate && validateBudget()) {
+            saveData();
+            navigation.goBack(); // Navigate back after submission
+        } else {
+            Alert.alert('Error', 'Please complete all fields before submitting.');
         }
     };
 
@@ -56,7 +66,8 @@ const DateSelector = () => {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Set Your Dates and Budget</Text>
-            
+            <View style={styles.form}>
+
             <View style={styles.formGroup}>
                 <Text style={styles.label}>Start Date</Text>
                 <TouchableOpacity style={styles.input} onPress={() => showDatePicker('start')}>
@@ -81,10 +92,11 @@ const DateSelector = () => {
                     keyboardType="numeric"
                 />
             </View>
-            
+            </View>
+
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.saveButton} onPress={saveData}>
-                    <Text style={styles.buttonText}>Set Dates & Budget</Text>
+                <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                    <Text style={styles.buttonText}>Submit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.clearButton} onPress={clearInputs}>
                     <Text style={styles.buttonText}>Clear All</Text>
@@ -94,7 +106,7 @@ const DateSelector = () => {
             <Modal visible={showCalendar} transparent={true}>
                 <View style={styles.modalContainer}>
                     <View style={styles.calendarContainer}>
-                        <Calendar 
+                        <Calendar
                             onDayPress={onDateChange}
                             markedDates={{
                                 [startDate]: { selected: true, selectedColor: '#00adf5' },
@@ -167,7 +179,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: 20,
     },
-    saveButton: {
+    submitButton: {
         backgroundColor: '#4caf50',
         padding: 15,
         borderRadius: 10,
@@ -210,7 +222,29 @@ const styles = StyleSheet.create({
         width: '90%',
         backgroundColor: '#fff',
         borderRadius: 8,
-      },
-    });
-    
-    export default DateSelector;
+    },
+    closeButton: {
+        marginTop: 10,
+        padding: 10,
+        backgroundColor: '#00adf5',
+        alignItems: 'center',
+        borderRadius: 5,
+    },
+    closeButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    form: {
+        width: "100%",
+        backgroundColor: "#fff",
+        borderRadius: 15,
+        padding: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+});
+
+export default DateSelector;
