@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react"; 
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
+import { LineChart } from 'react-native-chart-kit'; 
+import { Dimensions } from 'react-native';
 import { getAuth } from "firebase/auth";
 import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 import { initializeApp, getApps } from "firebase/app";

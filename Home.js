@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { SafeAreaView, StyleSheet, Text, View, ScrollView, Alert, RefreshControl, Button, TouchableOpacity } from "react-native";
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from "firebase/auth";
-import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, query, orderBy } from "firebase/firestore";
 import { initializeApp, getApps } from "firebase/app";
 import Icon from 'react-native-vector-icons/Ionicons'; // Import the Ionicons library
-import ExpenseTable from "./spendingtable";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -38,26 +37,21 @@ const Home = () => {
     const user = auth.currentUser;
     if (user) {
       try {
-        // Fetch budget only if not already fetched
+        // Fetch the initial budget if it's not already set
         if (initialBudget === 0) {
           const budgetDocRef = doc(db, "users", user.uid, "expenses", "dates");
           const budgetDoc = await getDoc(budgetDocRef);
 
           if (budgetDoc.exists()) {
             const data = budgetDoc.data();
-            console.log("Fetched data: ", data); // Log the fetched data
             if (data) {
               const fetchedBudget = data.budget || 0;
               setInitialBudget(fetchedBudget);
-            } else {
-              console.error("No data found in the document");
             }
-          } else {
-            console.error("Document does not exist");
           }
         }
 
-        // Fetch expenses
+        // Fetch the expenses
         const expensesQuery = query(
           collection(db, "users", user.uid, "expenses"),
           orderBy("createdAt", "desc")
@@ -69,7 +63,6 @@ const Home = () => {
         }));
         setExpenses(loadedExpenses);
 
-        // Calculate total spent
         calculateTotalSpent(loadedExpenses);
       } catch (error) {
         console.error("Error fetching data: ", error);
@@ -80,7 +73,7 @@ const Home = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, []); // Only call loadData when the component is first mounted
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -104,17 +97,57 @@ const Home = () => {
     );
   };
 
+  const ViewAnalytics = () => {
+    Alert.alert(
+      "Pockify",
+      "Do you want to view your analytics?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "OK",
+          onPress: () => navigation.navigate('spendingtable')
+        }
+      ]
+    );
+  };
+
+  const handleUpdateBudget = async (newBudget) => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const budgetDocRef = doc(db, "users", user.uid, "expenses", "dates");
+        await setDoc(budgetDocRef, { budget: newBudget });
+        
+        // After updating the budget, reload the data
+        setInitialBudget(newBudget);
+        loadData();
+        Alert.alert("Success", "Budget updated successfully.");
+      } catch (error) {
+        console.error("Error updating budget:", error);
+        Alert.alert("Error", "Could not update budget.");
+      }
+    } else {
+      Alert.alert("Error", "You need to be logged in to update the budget.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Budget</Text>
+        <View style={styles.headerContent}>
+          <Icon name="wallet" size={24} color="#fff" style={styles.walletIcon} />
+          <Text style={styles.headerTitle}>My Budget</Text>
+        </View>
         <Text style={styles.headerAmount}>₱ {(initialBudget - totalSpent).toFixed(2)}</Text>
       </View>
 
       {/* Budget Summary */}
       <View style={styles.summaryContainer}>
-        <Text style={styles.summaryText}>Estimated Expense is ₱ {totalSpent.toFixed(2)}.</Text>
+        <Text style={styles.summaryText}>Allocated Budget is ₱ {totalSpent.toFixed(2)}.</Text>
       </View>
 
       {/* Expenses Title */}
@@ -140,9 +173,9 @@ const Home = () => {
       {/* Button to navigate to Spending Table */}
       <Button
         title="View Analytics"
-        onPress={() => navigation.navigate('spendingtable')}
-          color="#34495e"
-          height="50"
+        onPress={ViewAnalytics}
+        color="#34495e"
+        height="50"
       />
 
       {/* Plus Sign Button to navigate to Budget Tracker */}
@@ -169,6 +202,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     height: 120,
     elevation: 6,
+    justifyContent: "space-between",
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  walletIcon: {
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 18,
@@ -179,6 +220,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     color: "#fff",
     fontWeight: "bold",
+    marginTop: 10,
   },
   summaryContainer: {
     padding: 20,

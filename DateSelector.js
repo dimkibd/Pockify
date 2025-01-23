@@ -1,230 +1,216 @@
-import React, { useState } from "react";
-import { View, Text, Button, StyleSheet, Alert, TextInput } from "react-native";
-import { Calendar } from "react-native-calendars";
-import { useNavigation } from "@react-navigation/native"; // Import useNavigation
-import { getFirestore, doc, setDoc } from "firebase/firestore"; // Firestore functions
-import { getAuth } from "firebase/auth"; // To get current user's ID
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAvhnJOnzUJzCc8MiCFs2HksNratuRncnA",
-  authDomain: "pockify-41e51.firebaseapp.com",
-  projectId: "pockify-41e51",
-  storageBucket: "pockify-41e51.appspot.com",
-  messagingSenderId: "33391220232",
-  appId: "1:33391220232:web:528be8515fd882c1b963bd",
-};
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { useNavigation } from '@react-navigation/native';
 
 const DateSelector = () => {
-  const navigation = useNavigation(); // Use the hook to get navigation
-  const auth = getAuth(); // Get the Firebase authentication instance
-  const db = getFirestore(); // Get Firestore instance
+  const navigation = useNavigation();
+    const auth = getAuth();
+    const db = getFirestore();
 
-  // Local state management within the DateSelector component
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [budget, setBudget] = useState(""); // State for the budget
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [budget, setBudget] = useState('');
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [currentSelection, setCurrentSelection] = useState('');
 
-  const onDateChange = (date, type) => {
-    if (type === "startDate") {
-      setStartDate(date.dateString);
-      setShowStartDatePicker(false);
-    } else if (type === "endDate") {
-      setEndDate(date.dateString);
-      setShowEndDatePicker(false);
-    }
-  };
+    const onDateChange = (date) => {
+        if (currentSelection === 'start') {
+            setStartDate(date.dateString);
+        } else if (currentSelection === 'end') {
+            setEndDate(date.dateString);
+        }
+        setShowCalendar(false);
+    };
 
-  // Function to save the selected dates and budget to Firestore
-  const saveDataToFirestore = async () => {
-    const user = auth.currentUser;
-    if (user) {
-      if (!startDate || !endDate || !budget) {
-        Alert.alert("Error", "Start date, end date, and budget are required.");
-        return;
-      }
+    const clearInputs = () => {
+        setStartDate('');
+        setEndDate('');
+        setBudget('');
+        Alert.alert('Inputs Cleared', 'All inputs have been reset.');
+    };
 
-      // Validate the budget input
-      const parsedBudget = parseFloat(budget);
-      if (isNaN(parsedBudget) || parsedBudget <= 0) {
-        Alert.alert("Error", "Please enter a valid budget amount.");
-        return;
-      }
+    const validateBudget = () => {
+        const value = parseFloat(budget);
+        return !isNaN(value) && value > 0;
+    };
 
-      try {
-        const userRef = doc(db, "users", user.uid, "expenses", "dates"); // Save data in userSettings > dates
-        await setDoc(userRef, {
-          startDate,
-          endDate,
-          budget: parsedBudget,
-        }, { merge: true }); // merge=true ensures existing data is not overwritten
-        
-        // Navigate to the BudgetTracker screen
-        navigation.navigate("budgetTracker", {
-          startDate,
-          endDate,
-          budget: parsedBudget,
-        });
+    const saveData = async () => {
+        const user = auth.currentUser;
+        if (user && validateBudget()) {
+            const userRef = doc(db, 'users', user.uid, 'expenses', 'dates');
+            await setDoc(userRef, { startDate, endDate, budget: parseFloat(budget) }, { merge: true });
+            Alert.alert('Success', 'Dates and budget saved successfully!');
+        } else {
+            Alert.alert('Error', 'You must be logged in and budget must be valid.');
+        }
+    };
 
-        Alert.alert("Success", "Dates and budget saved successfully!");
-      } catch (error) {
-        console.error("Error saving data: ", error);
-        Alert.alert("Error", "There was an issue saving the data.");
-      }
-    } else {
-      Alert.alert("Error", "You must be logged in to save the data.");
-    }
-  };
+    const showDatePicker = (type) => {
+        setCurrentSelection(type);
+        setShowCalendar(true);
+    };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.dateContainer}>
-        <Text style={styles.label}>Start Date</Text>
-        <Text
-          style={styles.dateText}
-          onPress={() => setShowStartDatePicker(true)}
-        >
-          {startDate || "Select Start Date"}
-        </Text>
-      </View>
-      <View style={styles.dateContainer}>
-        <Text style={styles.label}>End Date</Text>
-        <Text
-          style={styles.dateText}
-          onPress={() => setShowEndDatePicker(true)}
-        >
-          {endDate || "Select End Date"}
-        </Text>
-      </View>
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>Set Your Dates and Budget</Text>
+            
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Start Date</Text>
+                <TouchableOpacity style={styles.input} onPress={() => showDatePicker('start')}>
+                    <Text style={styles.inputText}>{startDate || 'Select Start Date'}</Text>
+                </TouchableOpacity>
+            </View>
 
-      <View style={styles.dateContainer}>
-        <Text style={styles.label}>Total Budget (PHP)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter total budget"
-          value={budget}
-          onChangeText={setBudget}
-          keyboardType="numeric"
-        />
-      </View>
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>End Date</Text>
+                <TouchableOpacity style={styles.input} onPress={() => showDatePicker('end')}>
+                    <Text style={styles.inputText}>{endDate || 'Select End Date'}</Text>
+                </TouchableOpacity>
+            </View>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Set Dates & Budget"
-          onPress={saveDataToFirestore} // Save dates and budget to Firestore when clicked
-          color="green"
-        />
-      </View>
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Total Budget (PHP)</Text>
+                <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter total budget"
+                    value={budget}
+                    onChangeText={setBudget}
+                    keyboardType="numeric"
+                />
+            </View>
+            
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.saveButton} onPress={saveData}>
+                    <Text style={styles.buttonText}>Set Dates & Budget</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.clearButton} onPress={clearInputs}>
+                    <Text style={styles.buttonText}>Clear All</Text>
+                </TouchableOpacity>
+            </View>
 
-      {/* Start Date Picker */}
-      {showStartDatePicker && (
-        <Calendar
-          current={startDate || undefined} // Set current date conditionally
-          onDayPress={(day) => onDateChange(day, "startDate")}
-          markedDates={{
-            [startDate]: { selected: true, selectedColor: "blue" },
-          }}
-          theme={{
-            backgroundColor: "#15202b", // Set background color for the calendar
-            calendarBackground: "#15202b",
-            textSectionTitleColor: "#b6c1cd",
-            textSectionTitleDisabledColor: "#d9e1e8",
-            selectedDayBackgroundColor: "#00adf5",
-            selectedDayTextColor: "#ffffff",
-            todayTextColor: "#00adf5",
-            dayTextColor: "#2d4150",
-            textDisabledColor: "#d9e1e8",
-            dotColor: "#00adf5",
-            selectedDotColor: "#ffffff",
-            arrowColor: "orange",
-            disabledArrowColor: "#d9e1e8",
-            monthTextColor: "#ffffff",
-            indicatorColor: "#ffffff",
-            "stylesheet.calendar.header": {
-              week: {
-                marginTop: 5,
-                flexDirection: "row",
-                justifyContent: "space-between",
-              },
-            },
-          }}
-        />
-      )}
-
-      {/* End Date Picker */}
-      {showEndDatePicker && (
-        <Calendar
-          current={endDate || undefined} // Set current date conditionally
-          onDayPress={(day) => onDateChange(day, "endDate")}
-          markedDates={{
-            [endDate]: { selected: true, selectedColor: "blue" },
-          }}
-          theme={{
-            backgroundColor: "#15202b", // Set background color for the calendar
-            calendarBackground: "#15202b",
-            textSectionTitleColor: "#b6c1cd",
-            textSectionTitleDisabledColor: "#d9e1e8",
-            selectedDayBackgroundColor: "#00adf5",
-            selectedDayTextColor: "#ffffff",
-            todayTextColor: "#00adf5",
-            dayTextColor: "#2d4150",
-            textDisabledColor: "#d9e1e8",
-            dotColor: "#00adf5",
-            selectedDotColor: "#ffffff",
-            arrowColor: "orange",
-            disabledArrowColor: "#d9e1e8",
-            monthTextColor: "blue",
-            indicatorColor: "blue",
-            "stylesheet.calendar.header": {
-              week: {
-                marginTop: 5,
-                flexDirection: "row",
-                justifyContent: "space-between",
-              },
-            },
-          }}
-        />
-      )}
-    </View>
-  );
+            <Modal visible={showCalendar} transparent={true}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.calendarContainer}>
+                        <Calendar 
+                            onDayPress={onDateChange}
+                            markedDates={{
+                                [startDate]: { selected: true, selectedColor: '#00adf5' },
+                                [endDate]: { selected: true, selectedColor: '#00adf5' },
+                            }}
+                        />
+                        <TouchableOpacity style={styles.closeButton} onPress={() => setShowCalendar(false)}>
+                            <Text style={styles.closeButtonText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </View>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, // Ensure the container takes the full screen
-    backgroundColor: "#15202b", // Set the background color for the entire page
-    padding: 20,
-  },
-  label: {
-    fontSize: 23,
-    marginBottom: 5,
-    color: "white", // Change the label color to white
-  },
-  dateContainer: {
-    marginBottom: 10,
-  },
-  dateText: {
-    borderWidth: 1,
-    borderColor: "grey",
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: "white",
-    color: "#000", // Set the text color to black for better visibility
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "grey",
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: "white", // Keep input background white for contrast
-    marginTop: 5,
-    color: "#000", // Set the text color to black inside the input field
-  },
-  buttonContainer: {
-    marginTop: 10,
-  },
-});
-
-export default DateSelector;
+    container: {
+        flex: 1,
+        backgroundColor: '#f9f9f9',
+        padding: 20,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        color: '#333',
+        textAlign: 'center',
+    },
+    formGroup: {
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 16,
+        marginBottom: 5,
+        color: '#555',
+        fontWeight: 'bold',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    inputText: {
+        color: '#333',
+        fontSize: 16,
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        color: '#333',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    saveButton: {
+        backgroundColor: '#4caf50',
+        padding: 15,
+        borderRadius: 10,
+        flex: 1,
+        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    clearButton: {
+        backgroundColor: '#f44336',
+        padding: 15,
+        borderRadius: 10,
+        flex: 1,
+        marginLeft: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    calendarContainer: {
+        width: '90%',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+      },
+    });
+    
+    export default DateSelector;
